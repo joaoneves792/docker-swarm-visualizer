@@ -83,6 +83,13 @@ export function getAllContainers(){
     .then(({ objects }) => filterTerminatedObjects(objects))
 }
 
+export function getAllContainersFromNode(other_node){
+    var host = window.location.href + 'apis/';
+     let other_host = other_node + 'apis/';
+     return getUri(host+`containers/json`)
+    .then(({ objects }) => filterTerminatedObjects(objects))
+}
+
 export function getAllServices(){
     return getUri(host+`services`)
     .then(({ objects }) => filterTerminatedObjects(objects))

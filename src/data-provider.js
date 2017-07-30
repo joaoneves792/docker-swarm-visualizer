@@ -57,15 +57,23 @@ let stringToColor = (str) => {
 
 
 
-let physicalStructProvider = ([initialNodes, initialContainers]) => {
+let physicalStructProvider = ([initialNodes, initialContainers, initialServices]) => {
   let containers = _.map(initialContainers, _.cloneDeep);
   let nodeClusters = [{uuid:"clusterid", name:""}];
   let nodes = _.map(initialNodes, _.cloneDeep);
   let root = [];
 
   let addContainer = (container) => {
+    
     var cloned = Object.assign({},container);
     let NodeID = cloned.NodeID;
+    let containerID = cloned.Status.ContainerStatus.ContainerID;
+    let nwInfo = "Networks:<br/>";
+    for (var i = 0; i < cloned.NetworksAttachments.length; i++) {
+        nwInfo = nwInfo + cloned.NetworksAttachments[i].Network.Spec.Name + 
+		    " -> " +
+		    cloned.NetworksAttachments[i].Network.DriverState.Name + "<br/>";
+    }
     _.find(root,(cluster) => {
     var node = _.find(cluster.children,{ ID:NodeID });
     if(!node) return;
@@ -80,7 +88,6 @@ let physicalStructProvider = ([initialNodes, initialContainers]) => {
 
 
 
-
     let imageTag ="<div style='height: 100%; padding: 5px 5px 5px 5px; border: 2px solid "+color+"'>"+
         "<span class='contname' style='color: white; font-weight: bold;font-size: 12px'>"+ serviceName +"</span>"+
         "<br/> image : " + imageNameMatches[0] +
@@ -89,6 +96,7 @@ let physicalStructProvider = ([initialNodes, initialContainers]) => {
         " updated : " + dateStamp +
         "<br/>"+ cloned.Status.ContainerStatus.ContainerID +
         "<br/> state : "+startState +
+	"<br/>"+ nwInfo +
         "</div>";
 
     if (node.Spec.Role=='manager')  {
@@ -172,8 +180,15 @@ updateNodes = (nodes) => {
           name = node.Description.Hostname;
           if(name.length>0) {
             currentnode.Description.Hostname = name ;
-            currentnode.name = name+" <br/> "+ node.Spec.Role+
-            " <br/>"+(currentnode.Description.Resources.MemoryBytes/1024/1024/1024).toFixed(3)+"G RAM <br/>";
+    	    let role = "";
+	    if(node.Spec.Role == "manager"){
+	        role ="<p style='color:#e85b6c'>manager</p>";
+	    }else{
+	    	role = "worker"
+	    }
+            currentnode.name = name+" <br/> "+ role+
+            " <br/>"+(currentnode.Description.Resources.MemoryBytes/1024/1024/1024).toFixed(1)+"G RAM"+ 
+	    " <br/>"+(currentnode.Status.Addr)+"<br/>"; 
             for (var key in node.Spec.Labels) {
               if(node.Spec.Labels[key].length>0){
                 currentnode.name += " <br/> " + key + "=" + node.Spec.Labels[key];
