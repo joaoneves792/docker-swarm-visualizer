@@ -60,28 +60,43 @@ let stringToColor = (str) => {
 
 let physicalStructProvider = ([initialNodes, initialContainers, initialServices, initialActualContainers]) => {
   let containers = _.map(initialContainers, _.cloneDeep);
-  let actualContainers = _.map(initialActualContainers, _cloneDeep);
-
+  let actualContainers = _.map(initialActualContainers, _.cloneDeep);
   let nodeClusters = [{uuid:"clusterid", name:""}];
   let nodes = _.map(initialNodes, _.cloneDeep);
-  for
-
-
   let root = [];
 
-  let addContainer = (container) => {
+  let addContainer = (container, containersFromNodes) => {
     
     var cloned = Object.assign({},container);
     let NodeID = cloned.NodeID;
     let containerID = cloned.Status.ContainerStatus.ContainerID;
-    console.log(actualContainers);
 
+    //Match containers
+    let matchedContainer = null;
+    containersFromNodes.forEach((ct)=>{ if(ct.Id == containerID){matchedContainer = ct; }})
+
+    //Fill in network info
     let nwInfo = "Networks:<br/>";
     for (var i = 0; i < cloned.NetworksAttachments.length; i++) {
+        let netId = cloned.NetworksAttachments[i].Network.ID;
+        let ip = "Unknown";
+        if(matchedContainer != null){
+            let networks = matchedContainer.NetworkSettings.Networks;
+            for(var net in networks){
+                if(networks.hasOwnProperty(net)){
+                    if(networks[net].NetworkID == netId){
+                        ip=networks[net].IPAddress;
+                    }
+                }
+            }
+        }
         nwInfo = nwInfo + cloned.NetworksAttachments[i].Network.Spec.Name + 
-		    " -> " +
-		    cloned.NetworksAttachments[i].Network.DriverState.Name + "<br/>";
+		    " : " +
+		    cloned.NetworksAttachments[i].Network.DriverState.Name +
+		    "<br/> IP: " +
+		    ip + "<br/>";
     }
+
     _.find(root,(cluster) => {
     var node = _.find(cluster.children,{ ID:NodeID });
     if(!node) return;
@@ -99,10 +114,10 @@ let physicalStructProvider = ([initialNodes, initialContainers, initialServices,
     let imageTag ="<div style='height: 100%; padding: 5px 5px 5px 5px; border: 2px solid "+color+"'>"+
         "<span class='contname' style='color: white; font-weight: bold;font-size: 12px'>"+ serviceName +"</span>"+
         "<br/> image : " + imageNameMatches[0] +
-        "<br/> tag : " + (tagName ? tagName : "latest") +
-        "<br/>" + (cloned.Spec.ContainerSpec.Args?" cmd : "+cloned.Spec.ContainerSpec.Args+"<br/>" : "" ) +
-        " updated : " + dateStamp +
-        "<br/>"+ cloned.Status.ContainerStatus.ContainerID +
+        //"<br/> tag : " + (tagName ? tagName : "latest") +
+        (cloned.Spec.ContainerSpec.Args?"<br/> cmd : "+cloned.Spec.ContainerSpec.Args : "" ) +
+        //"<br/> updated : " + dateStamp +
+        //"<br/>"+ cloned.Status.ContainerStatus.ContainerID +
         "<br/> state : "+startState +
 	    "<br/>"+ nwInfo +
         "</div>";
@@ -172,7 +187,7 @@ updateNode = (node, state,spec) => {
 updateData = (resources) => {
   updateNodes(resources[0]);
 
-  updateContainers(resources[1], resources[2]);
+  updateContainers(resources[1], resources[2], resources[3]);
   data();
 },
 updateNodes = (nodes) => {
@@ -188,23 +203,12 @@ updateNodes = (nodes) => {
           name = node.Description.Hostname;
           if(name.length>0) {
             currentnode.Description.Hostname = name ;
-    	    let role = "";
-	    if(node.Spec.Role == "manager"){
-	        role ="<p style='color:#e85b6c'>manager</p>";
-	    }else{
-	    	role = "worker"
-	    }
-            currentnode.name = name+" <br/> "+ role+
-            " <br/>"+(currentnode.Description.Resources.MemoryBytes/1024/1024/1024).toFixed(1)+"G RAM"+ 
-	    " <br/>"+(currentnode.Status.Addr)+"<br/>";
+    	    let role = node.Spec.Role;
+            currentnode.name = name +
+    	    " <br/>"+(currentnode.Status.Addr) +
+            " <br/> "+ role+
+            " <br/>"+(currentnode.Description.Resources.MemoryBytes/1024/1024/1024).toFixed(1)+"G RAM<br/>";
 
-        if(node.Spec.Role != "manager"){
-                getAllContainersFromNode(currentnode.Status.Addr).done(function(data){
-                        let newContainers = _.map(data, _.cloneDeep);
-                        actualContainers.concat(newContainers);
-                        //containers = JSON.parse(data.replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0'))
-                });
-	    }
 	    for (var key in node.Spec.Labels) {
               if(node.Spec.Labels[key].length>0){
                 currentnode.name += " <br/> " + key + "=" + node.Spec.Labels[key];
@@ -225,7 +229,7 @@ updateNodes = (nodes) => {
     }
   }
 },
-updateContainers = (containers, services) => {
+updateContainers = (containers, services, allContainers) => {
   let nodes = root[0].children;
   // clearn all current children before rendering
   for(let node of nodes) {
@@ -238,7 +242,7 @@ updateContainers = (containers, services) => {
     container.ServiceName = service.Spec.Name;
     for (var i=0, iLen=nodes.length; i<iLen; i++) {
       if (nodes[i].ID == contNodeId) {
-        addContainer(container);
+        addContainer(container, allContainers);
       }
     }
 
@@ -249,7 +253,7 @@ updateContainers = (containers, services) => {
 nodeClusters.forEach(addNodeCluster);
 nodes.forEach(addNode);
 
-containers.forEach(addContainer);
+containers.forEach((container) =>{ addContainer(container, actualContainers); });
 
 return {
   addContainer,
@@ -307,13 +311,30 @@ reload() {
   return resources;
 });
 
+
+
 Promise.all([ clusterInit ])
     .then(([resources]) => {
-      if (!PHYSICAL_STRUCT)
-        PHYSICAL_STRUCT = physicalStructProvider(resources);
-  PHYSICAL_STRUCT.updateData(resources);
-this.emit('infrastructure-data', PHYSICAL_STRUCT.data());
-});
+        for(var i=0; i<resources[0].length; i++){
+            let node = resources[0][i];
+            if(node.Spec.Role != "manager"){
+                getAllContainersFromNode(node.Status.Addr).then((data) => {
+                    resources[3] = resources[3].concat(_.map(data, _.cloneDeep));
+                });
+	        }
+        }
+    });
+
+
+new Promise(resolve => setTimeout(resolve, 500)).then( () => {
+    Promise.all([ clusterInit ])
+        .then(([resources]) => {
+            if (!PHYSICAL_STRUCT)
+                PHYSICAL_STRUCT = physicalStructProvider(resources);
+            PHYSICAL_STRUCT.updateData(resources);
+            this.emit('infrastructure-data', PHYSICAL_STRUCT.data());
+        });
+    });
 }
 }
 

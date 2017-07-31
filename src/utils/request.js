@@ -85,7 +85,11 @@ export function getAllContainers(){
 }
 
 export function getAllContainersFromNode(other_node){
-    return $.getJSON('http://'+other_node+':8081/callback=?');
+    return $.ajax({
+      url: 'http://'+other_node+':8081/callback=?',
+      dataType: "jsonp",
+      jsonpCallback: "getContainers"
+    });
 }
 
 export function getAllServices(){
