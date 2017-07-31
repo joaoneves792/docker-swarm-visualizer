@@ -1,5 +1,6 @@
 import request from 'superagent';
 import _ from 'lodash';
+import $ from 'jquery';
 
 var host = window.location.href + 'apis/';
 var wsHost = ((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + window.location.pathname;
@@ -84,10 +85,7 @@ export function getAllContainers(){
 }
 
 export function getAllContainersFromNode(other_node){
-    var host = window.location.href + 'apis/';
-     let other_host = other_node + 'apis/';
-     return getUri(host+`containers/json`)
-    .then(({ objects }) => filterTerminatedObjects(objects))
+    return $.getJSON('http://'+other_node+':8081/callback=?');
 }
 
 export function getAllServices(){

@@ -10,7 +10,8 @@ import {
     getAllTasks,
     getAllServices,
     getAllNodeClusters,
-    getWebSocket
+    getWebSocket,
+    getAllContainersFromNode
     } from './utils/request';
 
 let STARTED = 0;
@@ -57,10 +58,15 @@ let stringToColor = (str) => {
 
 
 
-let physicalStructProvider = ([initialNodes, initialContainers, initialServices]) => {
+let physicalStructProvider = ([initialNodes, initialContainers, initialServices, initialActualContainers]) => {
   let containers = _.map(initialContainers, _.cloneDeep);
+  let actualContainers = _.map(initialActualContainers, _cloneDeep);
+
   let nodeClusters = [{uuid:"clusterid", name:""}];
   let nodes = _.map(initialNodes, _.cloneDeep);
+  for
+
+
   let root = [];
 
   let addContainer = (container) => {
@@ -68,6 +74,8 @@ let physicalStructProvider = ([initialNodes, initialContainers, initialServices]
     var cloned = Object.assign({},container);
     let NodeID = cloned.NodeID;
     let containerID = cloned.Status.ContainerStatus.ContainerID;
+    console.log(actualContainers);
+
     let nwInfo = "Networks:<br/>";
     for (var i = 0; i < cloned.NetworksAttachments.length; i++) {
         nwInfo = nwInfo + cloned.NetworksAttachments[i].Network.Spec.Name + 
@@ -96,7 +104,7 @@ let physicalStructProvider = ([initialNodes, initialContainers, initialServices]
         " updated : " + dateStamp +
         "<br/>"+ cloned.Status.ContainerStatus.ContainerID +
         "<br/> state : "+startState +
-	"<br/>"+ nwInfo +
+	    "<br/>"+ nwInfo +
         "</div>";
 
     if (node.Spec.Role=='manager')  {
@@ -188,8 +196,16 @@ updateNodes = (nodes) => {
 	    }
             currentnode.name = name+" <br/> "+ role+
             " <br/>"+(currentnode.Description.Resources.MemoryBytes/1024/1024/1024).toFixed(1)+"G RAM"+ 
-	    " <br/>"+(currentnode.Status.Addr)+"<br/>"; 
-            for (var key in node.Spec.Labels) {
+	    " <br/>"+(currentnode.Status.Addr)+"<br/>";
+
+        if(node.Spec.Role != "manager"){
+                getAllContainersFromNode(currentnode.Status.Addr).done(function(data){
+                        let newContainers = _.map(data, _.cloneDeep);
+                        actualContainers.concat(newContainers);
+                        //containers = JSON.parse(data.replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0'))
+                });
+	    }
+	    for (var key in node.Spec.Labels) {
               if(node.Spec.Labels[key].length>0){
                 currentnode.name += " <br/> " + key + "=" + node.Spec.Labels[key];
               } else {
@@ -259,7 +275,8 @@ class DataProvider extends EventEmitter {
     var clusterInit = Promise.all([
           getAllNodes(),
           getAllTasks(),
-          getAllServices()
+          getAllServices(),
+          getAllContainers()
         ])
             .then((resources) => {
           _.remove(resources[1],(nc) => nc.state === 'Empty cluster' || nc.state === 'Terminated');
@@ -282,7 +299,8 @@ reload() {
   var clusterInit = Promise.all([
         getAllNodes(),
         getAllTasks(),
-        getAllServices()
+        getAllServices(),
+        getAllContainers()
       ])
           .then((resources) => {
         _.remove(resources[1],(nc) => nc.state === 'Empty cluster' || nc.state === 'Terminated');
