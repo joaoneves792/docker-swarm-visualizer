@@ -86,10 +86,13 @@ export function getAllContainers(){
 
 export function getAllContainersFromNode(other_node){
     return $.ajax({
-      url: 'http://'+other_node+':8081/callback=?',
+      url: 'http://'+other_node+':8081/',
       dataType: "jsonp",
-      jsonpCallback: "getContainers"
     });
+}
+
+export function getInfo(){
+    return getUri(host+`info`);
 }
 
 export function getAllServices(){

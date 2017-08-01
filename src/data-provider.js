@@ -11,7 +11,8 @@ import {
     getAllServices,
     getAllNodeClusters,
     getWebSocket,
-    getAllContainersFromNode
+    getAllContainersFromNode,
+    getInfo
     } from './utils/request';
 
 let STARTED = 0;
@@ -209,13 +210,13 @@ updateNodes = (nodes) => {
             " <br/> "+ role+
             " <br/>"+(currentnode.Description.Resources.MemoryBytes/1024/1024/1024).toFixed(1)+"G RAM<br/>";
 
-	    for (var key in node.Spec.Labels) {
+	    /*for (var key in node.Spec.Labels) {
               if(node.Spec.Labels[key].length>0){
                 currentnode.name += " <br/> " + key + "=" + node.Spec.Labels[key];
               } else {
                 currentnode.name += " <br/> " + key;
               }
-            }
+            }*/
           }
           updateNode(currentnode, node.state, node.Spec);
         }
@@ -299,12 +300,16 @@ reload() {
   if(STARTED == 0) return;
   STARTED++;
 
+
+  var containersMap = {};
   // console.log(STARTED);
   var clusterInit = Promise.all([
         getAllNodes(),
         getAllTasks(),
         getAllServices(),
-        getAllContainers()
+        getAllContainers(),
+        getInfo(),
+        containersMap
       ])
           .then((resources) => {
         _.remove(resources[1],(nc) => nc.state === 'Empty cluster' || nc.state === 'Terminated');
@@ -312,14 +317,14 @@ reload() {
 });
 
 
-
 Promise.all([ clusterInit ])
     .then(([resources]) => {
+        let dockerInfo = resources[4].objects;
         for(var i=0; i<resources[0].length; i++){
             let node = resources[0][i];
-            if(node.Spec.Role != "manager"){
+            if(dockerInfo.Swarm.NodeID != node.ID){
                 getAllContainersFromNode(node.Status.Addr).then((data) => {
-                    resources[3] = resources[3].concat(_.map(data, _.cloneDeep));
+                    resources[5][node.ID] = data;
                 });
 	        }
         }
@@ -329,6 +334,7 @@ Promise.all([ clusterInit ])
 new Promise(resolve => setTimeout(resolve, 500)).then( () => {
     Promise.all([ clusterInit ])
         .then(([resources]) => {
+            Object.values(resources[5]).forEach((containerList) => {resources[3] = resources[3].concat(_.map(containerList, _.cloneDeep)); })
             if (!PHYSICAL_STRUCT)
                 PHYSICAL_STRUCT = physicalStructProvider(resources);
             PHYSICAL_STRUCT.updateData(resources);
