@@ -2,14 +2,15 @@
 
 ![Sample image of  nodes with data](./nodes.png)
 
-#Warpenguins Docker Swarm Visualizer
+# Warpenguin's Docker Swarm Visualizer
 This is a fork of [https://github.com/dockersamples/docker-swarm-visualizer](https://github.com/dockersamples/docker-swarm-visualizer).
 
 The added functionality is the following:
--Display container attached netwok information
-⋅⋅⋅-Network name
-⋅⋅⋅-Network driver
-⋅⋅⋅-IP address
+
+- Display container attached netwok information  
+   - Network name  
+   - Network driver  
+   - IP address  
 
 The visualizer can be deployed from a manager node by running:
 
@@ -26,7 +27,7 @@ It should then be accessible through http at any node on port 8080.
 Do not use this in a production environment, I modified the original code for the purpose of helping to debug network issues on development clusters.
 
 
-#Original Readme bellow
+# Original Readme bellow
 
 # Docker Swarm Visualizer
 *** note ***
