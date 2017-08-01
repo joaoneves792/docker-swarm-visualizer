@@ -66,7 +66,7 @@ let physicalStructProvider = ([initialNodes, initialContainers, initialServices,
   let nodes = _.map(initialNodes, _.cloneDeep);
   let root = [];
 
-  let addContainer = (container, containersFromNodes) => {
+  let addContainer = (container, containersFromNodes, nodes) => {
     
     var cloned = Object.assign({},container);
     let NodeID = cloned.NodeID;
@@ -79,19 +79,32 @@ let physicalStructProvider = ([initialNodes, initialContainers, initialServices,
     //Fill in network info
     let nwInfo = "Networks:<br/>";
     for (var i = 0; i < cloned.NetworksAttachments.length; i++) {
+        let nwName = cloned.NetworksAttachments[i].Network.Spec.Name;
         let netId = cloned.NetworksAttachments[i].Network.ID;
         let ip = "Unknown";
         if(matchedContainer != null){
             let networks = matchedContainer.NetworkSettings.Networks;
             for(var net in networks){
                 if(networks.hasOwnProperty(net)){
-                    if(networks[net].NetworkID == netId){
+                    //If we are using host-local network host then there is no IPAM and therefore we have to get the ip
+                    //from the node hosting the container
+                    if(net == 'host'){
+                        var nodeId = cloned.NodeID;
+                        nodes.forEach(function(node){
+                            if(nodeId == node.ID){
+                                ip=node.Status.Addr;
+                            }
+                        });
+
+                    //Checking for network ID matches is not sufficient, host-local networks will have different IDs
+                    //but are sure to have the same name
+                    }else if(networks[net].NetworkID == netId || net == nwName){
                         ip=networks[net].IPAddress;
                     }
                 }
             }
         }
-        nwInfo = nwInfo + cloned.NetworksAttachments[i].Network.Spec.Name + 
+        nwInfo = nwInfo + nwName +
 		    " : " +
 		    cloned.NetworksAttachments[i].Network.DriverState.Name +
 		    "<br/> IP: " +
@@ -188,7 +201,7 @@ updateNode = (node, state,spec) => {
 updateData = (resources) => {
   updateNodes(resources[0]);
 
-  updateContainers(resources[1], resources[2], resources[3]);
+  updateContainers(resources[1], resources[2], resources[3], resources[0]);
   data();
 },
 updateNodes = (nodes) => {
@@ -230,7 +243,7 @@ updateNodes = (nodes) => {
     }
   }
 },
-updateContainers = (containers, services, allContainers) => {
+updateContainers = (containers, services, allContainers, nodesInfo) => {
   let nodes = root[0].children;
   // clearn all current children before rendering
   for(let node of nodes) {
@@ -243,7 +256,7 @@ updateContainers = (containers, services, allContainers) => {
     container.ServiceName = service.Spec.Name;
     for (var i=0, iLen=nodes.length; i<iLen; i++) {
       if (nodes[i].ID == contNodeId) {
-        addContainer(container, allContainers);
+        addContainer(container, allContainers, nodesInfo);
       }
     }
 
@@ -254,7 +267,7 @@ updateContainers = (containers, services, allContainers) => {
 nodeClusters.forEach(addNodeCluster);
 nodes.forEach(addNode);
 
-containers.forEach((container) =>{ addContainer(container, actualContainers); });
+containers.forEach((container) =>{ addContainer(container, actualContainers, nodes); });
 
 return {
   addContainer,
