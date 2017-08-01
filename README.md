@@ -2,6 +2,32 @@
 
 ![Sample image of  nodes with data](./nodes.png)
 
+#Warpenguins Docker Swarm Visualizer
+This is a fork of [https://github.com/dockersamples/docker-swarm-visualizer](https://github.com/dockersamples/docker-swarm-visualizer).
+
+The added functionality is the following:
+-Display container attached netwok information
+⋅⋅⋅-Network name
+⋅⋅⋅-Network driver
+⋅⋅⋅-IP address
+
+The visualizer can be deployed from a manager node by running:
+
+```
+docker node update --label-add master=true
+docker stack deploy -c VisualizerDeployment.yaml visualizer
+./helperservice.sh
+```
+(a helper service is required to run on the worker nodes to collect the containers IP addresses, if you dont launch it that field will be left blank)
+
+It should then be accessible through http at any node on port 8080.
+
+***WARNING***
+Do not use this in a production environment, I modified the original code for the purpose of helping to debug network issues on development clusters.
+
+
+#Original Readme bellow
+
 # Docker Swarm Visualizer
 *** note ***
 _This only works with Docker Swarm Mode in Docker Engine 1.12.0 and later. It does not work with the separate Docker Swarm project_
