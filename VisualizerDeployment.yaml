@@ -1,16 +1,15 @@
 version: "3.3"
 services:
-  #  Hopefully on the release after 17.06.0-ce this should be possible
-  #  visualizer_client:
-  #    image: warpenguin.no-ip.org/warpvisualizerhelper:latest
-  #    volumes:
-  #      - "/var/run/docker.sock:/var/run/docker.sock"
-        #    deploy:
-        #      mode: global
-        #      placement:
-        #        constraints: [node.labels.master != true]
-        #    networks:
-        #      - outside
+  visualizer_client:
+    image: warpenguin.no-ip.org/warpvisualizerhelper:latest
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.labels.master != true]
+    networks:
+      - host
 
   visualizer:
     image: warpenguin.no-ip.org/warpvisualizer:latest
@@ -23,13 +22,8 @@ services:
         constraints: 
           - node.role == manager
           - node.labels.master == true
-    networks:
-      - webnet
 
 networks:
-  webnet:
-    driver: overlay
-    #This should work on the next release of docker
-    #  outside:
-    #    external:
-    #      name: "host"
+  host:
+    external:
+       name: "host"
